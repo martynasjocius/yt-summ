@@ -424,7 +424,7 @@ Summary:"""
         try:
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(summary)
-            print(f"Summary saved to: {filename}")
+            print(f"\nSummary saved to: {filename}")
         except Exception as e:
             print(f"Error saving summary: {e}")
 
