@@ -445,6 +445,8 @@ Summary:"""
             # Generate summary
             summary = self.generate_summary(transcript)
 
+            print()
+
             # Print summary (plain text, no separators)
             print(summary)
 
@@ -492,4 +494,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
