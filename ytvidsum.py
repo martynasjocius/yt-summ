@@ -472,12 +472,14 @@ Respond with ONLY the filename prefix (no file extension, no video ID). Example:
 
         return filename
 
-    def save_summary(self, summary: str, video_id: str, video_title: str = ""):
+    def save_summary(self, summary: str, video_id: str, video_title: str = "", video_url: str = ""):
         """Save summary to file with descriptive filename"""
         filename = self.create_descriptive_filename(video_title, video_id)
         try:
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(summary)
+                if video_url:
+                    f.write(f"\n\nSource: {video_url}")
             print(f"\nSummary saved to: {filename}")
         except Exception as e:
             print(f"Error saving summary: {e}")
@@ -506,7 +508,7 @@ Respond with ONLY the filename prefix (no file extension, no video ID). Example:
 
             # Save to file if requested
             if save_to_file:
-                self.save_summary(summary, video_id, video_title)
+                self.save_summary(summary, video_id, video_title, url)
 
         finally:
             # Clean up temporary files

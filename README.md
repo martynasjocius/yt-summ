@@ -70,7 +70,7 @@ The script will:
 2. Transcribe the audio to text
 3. Generate a summary using AI
 4. Display the summary in your terminal
-5. Save to file (if `--save` specified)
+5. Save to file with source URL (if `--save` specified)
 
 ## Example Output
 
@@ -87,6 +87,18 @@ PYTHON PROGRAMMING
 • **Next Steps**: Contribute to open source, build portfolio
 
 Summary saved to: python-beginners-guide-VIDEO_ID.txt
+```
+
+**Saved file contents:**
+```
+PYTHON PROGRAMMING
+• **Core Concepts**: Variables, functions, loops, data structures
+• **Best Resources**: Python.org tutorial, Real Python, Codecademy
+• **Practice Projects**: Build calculator, web scraper, data analyzer
+• **Key Libraries**: NumPy (data), Pandas (analysis), Flask (web)
+• **Next Steps**: Contribute to open source, build portfolio
+
+Source: https://www.youtube.com/watch?v=VIDEO_ID
 ```
 
 ## Requirements
