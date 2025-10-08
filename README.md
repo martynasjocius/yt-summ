@@ -13,6 +13,7 @@ Transform any YouTube video into a concise summary perfect for note-taking and q
 - 🎤 **Audio Transcription**: Uses OpenAI Whisper for accurate speech-to-text
 - 🤖 **AI Summarization**: Leverages Anthropic Claude or OpenAI for intelligent summarization
 - 📝 **Concise Format**: Generates summaries in various lengths (short/medium/long)
+- 🏷️ **Smart Filenames**: Uses AI to generate descriptive, short filenames instead of word collections
 - ⚡ **Fast & Efficient**: Quick processing with minimal dependencies
 
 ## Installation
@@ -57,7 +58,7 @@ export OPENAI_API_KEY="your-openai-api-key"
 
 ### Options
 
-- `--save`: Save summary to file with descriptive filename (e.g., `build-homelab-server-KaHuP8nDnuY.txt`)
+- `--save`: Save summary to file with AI-generated descriptive filename (e.g., `homelab-server-setup-KaHuP8nDnuY.txt`)
 - `--length {short,medium,long}`: Summary length (default: short)
   - **short**: Concise format with bullet points
   - **medium**: 2-3 paragraphs or well-structured list
@@ -85,7 +86,7 @@ PYTHON PROGRAMMING
 • **Key Libraries**: NumPy (data), Pandas (analysis), Flask (web)
 • **Next Steps**: Contribute to open source, build portfolio
 
-Summary saved to: learn-python-2024-VIDEO_ID.txt
+Summary saved to: python-beginners-guide-VIDEO_ID.txt
 ```
 
 ## Requirements

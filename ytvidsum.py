@@ -324,8 +324,62 @@ Summary:"""
 
         return f"video_{int(time.time())}"
 
+    def generate_filename_with_llm(self, video_title: str) -> str:
+        """Generate a short, descriptive filename using LLM"""
+        try:
+            prompt = f"""Create a short, descriptive filename prefix (2-4 words) for this YouTube video title. 
+The filename should be:
+- Concise and clear
+- Use hyphens between words
+- Lowercase only
+- No special characters except hyphens
+- Capture the main topic/theme
+
+Video title: "{video_title}"
+
+Respond with ONLY the filename prefix (no file extension, no video ID). Example: "hiking-essentials" or "python-tutorial" or "cooking-basics"."""
+
+            if self.anthropic_client:
+                response = self.anthropic_client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=50,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                filename_prefix = response.content[0].text.strip()
+            elif self.openai_client:
+                response = self.openai_client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    max_tokens=50,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                filename_prefix = response.choices[0].message.content.strip()
+            else:
+                return None
+
+            # Clean up the response - remove any extra text or formatting
+            filename_prefix = filename_prefix.split('\n')[0].strip()
+            # Remove any quotes or extra characters
+            filename_prefix = filename_prefix.strip('"\'')
+            
+            # Validate the format (should be lowercase with hyphens)
+            import re
+            if re.match(r'^[a-z0-9-]+$', filename_prefix) and len(filename_prefix) > 0:
+                return filename_prefix
+            else:
+                return None
+                
+        except Exception as e:
+            print(f"Warning: LLM filename generation failed: {e}")
+            return None
+
     def create_descriptive_filename(self, video_title: str, video_id: str) -> str:
         """Create a descriptive filename from video title and ID"""
+        # Try LLM-based generation first
+        llm_prefix = self.generate_filename_with_llm(video_title)
+        if llm_prefix:
+            return f"{llm_prefix}-{video_id}.txt"
+        
+        # Fallback to original method
         import re
 
         # Clean the title: remove special characters, convert to lowercase
