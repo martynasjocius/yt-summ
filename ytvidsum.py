@@ -10,8 +10,11 @@
 
 import argparse
 import os
+import re
+import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -22,6 +25,16 @@ def _running_in_virtualenv() -> bool:
         or hasattr(sys, "real_prefix")
         or bool(os.environ.get("VIRTUAL_ENV"))
     )
+
+
+def _find_downloaded_audio(directory: Path) -> Path | None:
+    """Return the first audio file found in the download directory."""
+    for pattern in ("*.wav", "*.m4a", "*.mp3", "*.webm"):
+        matches = sorted(directory.glob(pattern))
+        if matches:
+            return matches[0]
+    return None
+
 
 try:
     import yt_dlp
@@ -36,7 +49,9 @@ except ImportError as e:
             "see README for setup details."
         )
     else:
-        print("Install missing packages with `pip install -r requirements.txt`. See README for details.")
+        print(
+            "Install missing packages with `pip install -r requirements.txt`. See README for details."
+        )
     sys.exit(1)
 
 
@@ -85,160 +100,74 @@ class YTVidSum:
             print(f"Failed to load Whisper model: {e}")
             sys.exit(1)
 
-    def _get_video_title(self, url: str) -> str:
-        """Get video title without downloading"""
-        try:
-            ydl_opts = {
-                "quiet": True,
-                "no_warnings": True,
-                "cookiesfrombrowser": (
-                    "chromium",
-                    "chrome",
-                    "firefox",
-                    "brave",
-                    "edge",
-                ),
-            }
-
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                return info.get("title", "Unknown")
-        except Exception:
-            return "Unknown"
-
     def download_video_audio(self, url: str) -> tuple[str, str]:
         """Download video and extract audio"""
         print(f"Downloading video from: {url}")
+        temp_dir = Path(tempfile.mkdtemp())
+        common_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": str(temp_dir / "%(title)s.%(ext)s"),
+            "extractaudio": True,
+            "audioformat": "wav",
+            "noplaylist": True,
+            "extractor_retries": 3,
+            "fragment_retries": 3,
+        }
+        browsers = ["chromium", "chrome", "firefox", "brave"]
+        attempts = [
+            (browser, {**common_opts, "cookiesfrombrowser": (browser,)})
+            for browser in browsers
+        ]
+        attempts.append((None, common_opts))  # Final attempt without cookies
 
-        # Create a temporary directory that won't be auto-deleted
-        temp_dir = tempfile.mkdtemp()
+        video_title = "Unknown"
+        last_error: Exception | None = None
 
         try:
-            # Configure yt-dlp options
-            ydl_opts = {
-                "format": "bestaudio/best",
-                "outtmpl": os.path.join(temp_dir, "%(title)s.%(ext)s"),
-                "extractaudio": True,
-                "audioformat": "wav",
-                "noplaylist": True,
-                # Add cookie support for age-restricted videos
-                "cookiesfrombrowser": ("chrome",),  # Try Chrome first
-                "extractor_retries": 3,
-                "fragment_retries": 3,
-            }
+            for browser, options in attempts:
+                label = f"{browser} cookies" if browser else "no browser cookies"
+                print(f"Trying download with {label}...")
 
-            # Try different browsers for cookie support
-            browsers = ["chromium", "chrome", "firefox", "brave", "edge"]
-
-            for browser in browsers:
                 try:
-                    ydl_opts["cookiesfrombrowser"] = (browser,)
-                    print(f"Trying with {browser} cookies...")
-
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    with yt_dlp.YoutubeDL(options) as ydl:
                         info = ydl.extract_info(url, download=True)
-                        video_title = info.get("title", "Unknown")
-                        print(f"Video title: {video_title}")
+                    video_title = info.get("title", "Unknown")
 
-                        # Find the downloaded audio file
-                        audio_files = list(Path(temp_dir).glob("*.wav"))
-                        if not audio_files:
-                            # Try other audio formats
-                            audio_files = (
-                                list(Path(temp_dir).glob("*.m4a"))
-                                + list(Path(temp_dir).glob("*.mp3"))
-                                + list(Path(temp_dir).glob("*.webm"))
-                            )
+                    audio_file = _find_downloaded_audio(temp_dir)
+                    if not audio_file:
+                        raise RuntimeError("No audio file found after download")
 
-                        if not audio_files:
-                            raise Exception("No audio file found after download")
+                    print(f"Video title: {video_title}")
+                    print(f"Audio file: {audio_file}")
+                    return str(audio_file), video_title
 
-                        audio_path = str(audio_files[0])
-                        print(f"Audio file: {audio_path}")
-                        return audio_path, video_title
-
-                except Exception as e:
-                    # Check if we actually have a downloaded file despite cookie errors
-                    audio_files = (
-                        list(Path(temp_dir).glob("*.wav"))
-                        + list(Path(temp_dir).glob("*.m4a"))
-                        + list(Path(temp_dir).glob("*.mp3"))
-                        + list(Path(temp_dir).glob("*.webm"))
-                    )
-
-                    if audio_files:
-                        # Download was successful, just cookie extraction failed
-                        audio_path = str(audio_files[0])
-                        print(f"Download successful! Audio file: {audio_path}")
-                        return audio_path, video_title
-
-                    if browser == browsers[-1]:  # Last browser attempt
-                        print(f"Failed with all browsers: {e}")
-                        print("Trying without cookies...")
-
-                        # Try without cookies as last resort
-                        try:
-                            ydl_opts_no_cookies = {
-                                "format": "bestaudio/best",
-                                "outtmpl": os.path.join(temp_dir, "%(title)s.%(ext)s"),
-                                "extractaudio": True,
-                                "audioformat": "wav",
-                                "noplaylist": True,
-                                "extractor_retries": 3,
-                                "fragment_retries": 3,
-                            }
-
-                            with yt_dlp.YoutubeDL(ydl_opts_no_cookies) as ydl:
-                                info = ydl.extract_info(url, download=True)
-                                video_title = info.get("title", "Unknown")
-                                print(f"Video title: {video_title}")
-
-                                # Find the downloaded audio file
-                                audio_files = list(Path(temp_dir).glob("*.wav"))
-                                if not audio_files:
-                                    # Try other audio formats
-                                    audio_files = (
-                                        list(Path(temp_dir).glob("*.m4a"))
-                                        + list(Path(temp_dir).glob("*.mp3"))
-                                        + list(Path(temp_dir).glob("*.webm"))
-                                    )
-
-                                if not audio_files:
-                                    raise Exception(
-                                        "No audio file found after download"
-                                    )
-
-                                audio_path = str(audio_files[0])
-                                print(f"Audio file: {audio_path}")
-                                return audio_path, video_title
-
-                        except Exception as e2:
-                            print(f"Error downloading video: {e2}")
-                            print("\nTroubleshooting tips:")
-                            print(
-                                "1. Make sure you're logged into YouTube in your browser"
-                            )
-                            print(
-                                "2. Try accessing the video directly in your browser first"
-                            )
-                            print(
-                                "3. Some videos may be region-restricted or require special permissions"
-                            )
-                            print(
-                                "4. Try using a different browser or clearing browser data"
-                            )
-                            sys.exit(1)
-                    else:
+                except Exception as error:
+                    audio_file = _find_downloaded_audio(temp_dir)
+                    if audio_file:
+                        inferred_title = video_title or audio_file.stem
                         print(
-                            f"Cookie extraction failed for {browser}, trying next browser..."
+                            f"Download completed with warnings. Audio file: {audio_file}"
                         )
-                        continue
-        except Exception as e:
-            # Clean up temp directory on error
-            import shutil
+                        return str(audio_file), inferred_title
 
+                    print(f"Attempt with {label} failed: {error}")
+                    last_error = error
+
+            if last_error is not None:
+                raise last_error
+            raise RuntimeError("Unable to download audio track")
+
+        except Exception as fatal_error:
             shutil.rmtree(temp_dir, ignore_errors=True)
-            raise e
+            print(f"Error downloading video: {fatal_error}")
+            print("\nTroubleshooting tips:")
+            print("1. Make sure you're logged into YouTube in your browser")
+            print("2. Try accessing the video directly in your browser first")
+            print(
+                "3. Some videos may be region-restricted or require special permissions"
+            )
+            print("4. Try using a different browser or clearing browser data")
+            sys.exit(1)
 
     def transcribe_audio(self, audio_path: str) -> str:
         """Transcribe audio to text using Whisper"""
@@ -308,11 +237,12 @@ Summary:"""
             print(f"Error generating summary: {e}")
             sys.exit(1)
 
+        print("No language model client is configured. Check your API key setup.")
+        sys.exit(1)
+
     def cleanup_temp_files(self, audio_path: str):
         """Clean up temporary files"""
         try:
-            import shutil
-
             temp_dir = os.path.dirname(audio_path)
             shutil.rmtree(temp_dir, ignore_errors=True)
         except Exception:
@@ -320,8 +250,6 @@ Summary:"""
 
     def extract_video_id(self, url: str) -> str:
         """Extract video ID from YouTube URL"""
-        import re
-
         # Handle both youtube.com and youtu.be formats
         patterns = [
             r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})",
@@ -334,8 +262,6 @@ Summary:"""
                 return match.group(1)
 
         # Fallback: use a timestamp-based ID
-        import time
-
         return f"video_{int(time.time())}"
 
     def generate_filename_with_llm(self, video_title: str) -> str:
@@ -357,31 +283,29 @@ Respond with ONLY the filename prefix (no file extension, no video ID). Example:
                 response = self.anthropic_client.messages.create(
                     model="claude-3-haiku-20240307",
                     max_tokens=50,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 filename_prefix = response.content[0].text.strip()
             elif self.openai_client:
                 response = self.openai_client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     max_tokens=50,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 filename_prefix = response.choices[0].message.content.strip()
             else:
                 return None
 
             # Clean up the response - remove any extra text or formatting
-            filename_prefix = filename_prefix.split('\n')[0].strip()
-            # Remove any quotes or extra characters
-            filename_prefix = filename_prefix.strip('"\'')
-            
-            # Validate the format (should be lowercase with hyphens)
-            import re
-            if re.match(r'^[a-z0-9-]+$', filename_prefix) and len(filename_prefix) > 0:
+            filename_prefix = filename_prefix.splitlines()[0].strip().strip("\"' ")
+            filename_prefix = filename_prefix.lower()
+            filename_prefix = re.sub(r"[^a-z0-9-]", "-", filename_prefix)
+            filename_prefix = re.sub(r"-+", "-", filename_prefix).strip("-")
+
+            if filename_prefix:
                 return filename_prefix
-            else:
-                return None
-                
+            return None
+
         except Exception as e:
             print(f"Warning: LLM filename generation failed: {e}")
             return None
@@ -392,16 +316,17 @@ Respond with ONLY the filename prefix (no file extension, no video ID). Example:
         llm_prefix = self.generate_filename_with_llm(video_title)
         if llm_prefix:
             return f"{llm_prefix}-{video_id}.txt"
-        
+
         # Simple fallback: use first few words from title
-        import re
         clean_title = re.sub(r"[^\w\s-]", "", video_title.lower())
         words = [word for word in clean_title.split() if len(word) > 2]
         title_words = words[:3] if words else ["video"]
-        
+
         return f"{'-'.join(title_words)}-{video_id}.txt"
 
-    def save_summary(self, summary: str, video_id: str, video_title: str = "", video_url: str = ""):
+    def save_summary(
+        self, summary: str, video_id: str, video_title: str = "", video_url: str = ""
+    ):
         """Save summary to file with descriptive filename"""
         filename = self.create_descriptive_filename(video_title, video_id)
         try:
@@ -451,7 +376,9 @@ def main():
     )
     parser.add_argument("url", nargs="?", help="YouTube video URL to summarize")
     parser.add_argument(
-        "--save", action="store_true", help="Save summary to file named VIDEO_ID.txt"
+        "--save",
+        action="store_true",
+        help="Save the summary to a descriptive filename",
     )
     parser.add_argument(
         "--length",
@@ -469,11 +396,6 @@ def main():
     # Validate URL
     if not ("youtube.com" in args.url or "youtu.be" in args.url):
         print("Error: Please provide a valid YouTube URL")
-        sys.exit(1)
-
-    # Validate length argument
-    if args.length not in ["short", "medium", "long"]:
-        print("Error: --length must be one of: short, medium, long")
         sys.exit(1)
 
     # Process video
