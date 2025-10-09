@@ -14,15 +14,29 @@ import sys
 import tempfile
 from pathlib import Path
 
+
+def _running_in_virtualenv() -> bool:
+    base_prefix = getattr(sys, "base_prefix", sys.prefix)
+    return (
+        sys.prefix != base_prefix
+        or hasattr(sys, "real_prefix")
+        or bool(os.environ.get("VIRTUAL_ENV"))
+    )
+
 try:
     import yt_dlp
     import whisper
     import anthropic
     import openai
 except ImportError as e:
-    print(f"Missing required dependency: {e}")
-    print("Please install required packages:")
-    print("pip install yt-dlp openai-whisper anthropic openai")
+    print(f"Dependency import failed: {e}")
+    if not _running_in_virtualenv():
+        print(
+            "Activate your project virtual environment (e.g. `source venv/bin/activate`) and retry; "
+            "see README for setup details."
+        )
+    else:
+        print("Install missing packages with `pip install -r requirements.txt`. See README for details.")
     sys.exit(1)
 
 
