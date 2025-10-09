@@ -449,7 +449,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="YouTube Video Summarizer - Generate concise summaries optimized for 4x6 index cards"
     )
-    parser.add_argument("url", help="YouTube video URL to summarize")
+    parser.add_argument("url", nargs="?", help="YouTube video URL to summarize")
     parser.add_argument(
         "--save", action="store_true", help="Save summary to file named VIDEO_ID.txt"
     )
@@ -461,6 +461,10 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if not args.url:
+        parser.print_usage(sys.stderr)
+        sys.exit(2)
 
     # Validate URL
     if not ("youtube.com" in args.url or "youtu.be" in args.url):
