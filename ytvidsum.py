@@ -379,98 +379,13 @@ Respond with ONLY the filename prefix (no file extension, no video ID). Example:
         if llm_prefix:
             return f"{llm_prefix}-{video_id}.txt"
         
-        # Fallback to original method
+        # Simple fallback: use first few words from title
         import re
-
-        # Clean the title: remove special characters, convert to lowercase
         clean_title = re.sub(r"[^\w\s-]", "", video_title.lower())
-
-        # Split into words and filter out common words
-        words = clean_title.split()
-        common_words = {
-            "the",
-            "a",
-            "an",
-            "and",
-            "or",
-            "but",
-            "in",
-            "on",
-            "at",
-            "to",
-            "for",
-            "of",
-            "with",
-            "by",
-            "is",
-            "are",
-            "was",
-            "were",
-            "be",
-            "been",
-            "being",
-            "have",
-            "has",
-            "had",
-            "do",
-            "does",
-            "did",
-            "will",
-            "would",
-            "could",
-            "should",
-            "may",
-            "might",
-            "must",
-            "can",
-            "this",
-            "that",
-            "these",
-            "those",
-            "i",
-            "you",
-            "he",
-            "she",
-            "it",
-            "we",
-            "they",
-            "me",
-            "him",
-            "her",
-            "us",
-            "them",
-            "my",
-            "your",
-            "his",
-            "her",
-            "its",
-            "our",
-            "their",
-            "how",
-            "what",
-            "when",
-            "where",
-            "why",
-            "who",
-            "which",
-        }
-
-        # Filter out common words and keep meaningful ones
-        meaningful_words = [
-            word for word in words if word not in common_words and len(word) > 2
-        ]
-
-        # Take first 3 meaningful words (or all if less than 3)
-        title_words = meaningful_words[:3]
-
-        # Join with hyphens and add video ID
-        if title_words:
-            filename = f"{'-'.join(title_words)}-{video_id}.txt"
-        else:
-            # Fallback if no meaningful words found
-            filename = f"video-{video_id}.txt"
-
-        return filename
+        words = [word for word in clean_title.split() if len(word) > 2]
+        title_words = words[:3] if words else ["video"]
+        
+        return f"{'-'.join(title_words)}-{video_id}.txt"
 
     def save_summary(self, summary: str, video_id: str, video_title: str = "", video_url: str = ""):
         """Save summary to file with descriptive filename"""
