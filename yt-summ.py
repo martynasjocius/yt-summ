@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# YTVidSum - YouTube Video Summarizer
+# yt-summ - YouTube Video Summarizer
 #
 # Downloads YouTube video content, transcribes audio, and generates a concise summary
 # using LLM with different length options (short/medium/long).
@@ -55,7 +55,7 @@ except ImportError as e:
     sys.exit(1)
 
 
-class YTVidSum:
+class YtSumm:
     def __init__(self, summary_length="short"):
         self.anthropic_client = None
         self.openai_client = None
@@ -399,7 +399,7 @@ def main():
         sys.exit(1)
 
     # Process video
-    summarizer = YTVidSum(summary_length=args.length)
+    summarizer = YtSumm(summary_length=args.length)
     summarizer.process_video(args.url, save_to_file=args.save)
 
 
