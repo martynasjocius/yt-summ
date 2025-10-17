@@ -2,7 +2,7 @@
 
 yt-summ is a CLI program that pulls YouTube audio with `yt-dlp`, transcribes it locally with Whisper, and feeds the transcript to your preferred LLM for a condensed brief you can archive or diff later.
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Highlights
@@ -47,8 +47,7 @@ export OPENAI_API_KEY="your-openai-api-key"
 
 ## Requirements
 
-- Python 3.8+
-- Internet access
+- Python 3.10+
 - API key for Anthropic or OpenAI
 
 ## License
